@@ -1,8 +1,8 @@
 # Security baseline
 
 - Passwords are hashed with bcrypt; plaintext passwords are never stored.
-- Authentication uses signed HttpOnly cookies. Local development uses SameSite=Lax; the current cross-origin production configuration uses SameSite=None; Secure. Prefer a same-site custom-domain or reverse-proxy deployment where practical, and test browser cookie behaviour before launch.
-- CORS is restricted to the configured web origin.
+- Authentication uses signed HttpOnly cookies. Cookies are limited to SameSite=Lax and are only sent over HTTPS in production. Prefer a same-site custom-domain or reverse-proxy deployment where practical, and test browser cookie behaviour before launch.
+- CORS and request origin/referrer checks reject cross-origin state-changing requests before session cookies are used.
 - Helmet sets baseline HTTP security headers.
 - Login and registration endpoints are rate-limited.
 - Zod validates external payloads; API errors do not expose stack traces in production.

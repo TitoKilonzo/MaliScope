@@ -45,7 +45,7 @@ Local demo administrator: `admin@maliscope.demo` / `ChangeMe123!`. These credent
 5. Seed initial content and demo admin: `npm run db:seed`.
 6. Start web and API: `npm run dev`.
 
-If PostgreSQL is not ready, the API can fall back to demo mode when `DEMO_MODE=true`. For production, set `DEMO_MODE=false` and fail deployment if the database is unavailable.
+If PostgreSQL is not ready, the API can fall back to demo mode during local development when `DEMO_MODE=true`. In production, the API always requires a working database and never creates the built-in demo administrator.
 
 ## Useful commands
 
@@ -95,6 +95,12 @@ npm run job:market-refresh
 7. Configure a scheduler to invoke `npm run job:market-refresh` after each completed exchange session only after a licensed provider adapter is implemented.
 8. Obtain privacy, copyright, data redistribution and regulatory review before public launch.
 9. Run dependency, SAST, DAST, backup-restore and load tests in CI/CD.
+
+### Render deployment
+
+Deploy two Render services from the repository root so npm workspaces can resolve the shared lockfile. For the API web service, use build command `npm install && npm run build -w @maliscope/api` and start command `npm run start -w @maliscope/api`. For the web service, use build command `npm install && npm run build -w @maliscope/web` and start command `npm run start -w @maliscope/web`. Both apps honor Render's assigned `PORT`.
+
+Configure the API service with `NODE_ENV=production`, `DEMO_MODE=false`, `DATABASE_URL`, `SESSION_SECRET` (at least 32 characters), and `WEB_ORIGIN` set to the web service's HTTPS origin. Configure the web service with `NEXT_PUBLIC_API_URL` set to the API's HTTPS origin. Run `npm run db:migrate -w @maliscope/api` as the API service's pre-deploy command before its first deployment and after schema changes. Never enable demo mode in production.
 
 ## Market data adapter
 

@@ -7,6 +7,17 @@ process.env.SESSION_SECRET = 'test-secret-that-is-long-enough-for-test';
 await initialiseDemoAdmin();
 
 describe('MaliScope API', () => {
+  it('does not initialize the demo administrator in production', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      await expect(initialiseDemoAdmin()).rejects.toThrow('Demo administrator initialization is disabled in production.');
+    } finally {
+      if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
   it('reports health and marks demo market data', async () => {
     const response = await request(app).get('/api/health');
     expect(response.status).toBe(200);

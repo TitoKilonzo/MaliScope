@@ -13,10 +13,20 @@ import { optionalAuth, requireAdmin, requireAuth } from './middleware/auth.js';
 
 const app = express();
 const allowedOrigin = process.env.WEB_ORIGIN || 'http://localhost:3000';
+const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigin, credentials: true, methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'] }));
-app.use((req, res, next) => { const origin = req.get('origin'); if (origin && origin !== allowedOrigin) return res.status(403).json({ error: 'Origin is not allowed.' }); next(); });
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  const referer = req.get('referer');
+  const isSameOrigin = !origin || origin === allowedOrigin;
+  const isAllowedReferer = !referer || (() => { try { return new URL(referer).origin === allowedOrigin; } catch { return false; } })();
+  if (origin && !isSameOrigin) return res.status(403).json({ error: 'Origin is not allowed.' });
+  if (referer && !isAllowedReferer) return res.status(403).json({ error: 'Referrer is not allowed.' });
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && origin && origin !== allowedOrigin) return res.status(403).json({ error: 'Origin is not allowed.' });
+  next();
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(optionalAuth);
@@ -32,6 +42,7 @@ const memory = {
 };
 
 export async function initialiseDemoAdmin() {
+  if (process.env.NODE_ENV === 'production') throw new Error('Demo administrator initialization is disabled in production.');
   if (getDatabase() || memory.users.size) return;
   const email = (process.env.SEED_ADMIN_EMAIL || 'admin@maliscope.demo').toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD || 'ChangeMe123!';
@@ -39,7 +50,7 @@ export async function initialiseDemoAdmin() {
 }
 
 function cookieOptions() {
-  return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 };
+  return { httpOnly: true, secure: isProduction, sameSite: 'lax' as const, path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 };
 }
 function apiError(res: express.Response, error: unknown) {
   const message = error instanceof Error ? error.message : 'Unexpected server error';

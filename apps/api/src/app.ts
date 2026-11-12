@@ -31,6 +31,10 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(optionalAuth);
 
+app.get('/', (_req, res) => {
+  res.json({ service: 'MaliScope API', message: 'API is running.', health: '/api/health' });
+});
+
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'Too many attempts. Please try again later.' } });
 const memory = {
   users: new Map<string, { id: string; name: string; email: string; passwordHash: string; role: string }>(),
@@ -155,16 +159,18 @@ app.get('/api/academy/courses/:slug', async (req, res) => {
   } catch (error) { return apiError(res, error); }
 });
 app.post('/api/academy/lessons/:lessonId/complete', requireAuth, async (req, res) => {
+  const lessonId = typeof req.params.lessonId === 'string' ? req.params.lessonId : null;
+  if (!lessonId) return res.status(400).json({ error: 'A valid lesson ID is required.' });
   try {
     const db = getDatabase();
     if (db) {
-      const [lesson] = await db.select().from(lessons).where(eq(lessons.id, req.params.lessonId)).limit(1);
+      const [lesson] = await db.select().from(lessons).where(eq(lessons.id, lessonId)).limit(1);
       if (!lesson) return res.status(404).json({ error: 'Lesson not found.' });
       await db.insert(learningProgress).values({ userId: req.user!.id, lessonId: lesson.id }).onConflictDoNothing();
       const rows = await db.select().from(learningProgress).where(eq(learningProgress.userId, req.user!.id));
       return res.json({ success: true, completedCount: rows.length });
     }
-    const set = memory.completedLessons.get(req.user!.id) ?? new Set<string>(); set.add(req.params.lessonId); memory.completedLessons.set(req.user!.id, set); return res.json({ success: true, completedCount: set.size });
+    const set = memory.completedLessons.get(req.user!.id) ?? new Set<string>(); set.add(lessonId); memory.completedLessons.set(req.user!.id, set); return res.json({ success: true, completedCount: set.size });
   } catch (error) { return apiError(res, error); }
 });
 
@@ -273,12 +279,14 @@ app.post('/api/watchlist', requireAuth, async (req, res) => {
   } catch (error) { return apiError(res, error); }
 });
 app.delete('/api/watchlist/:symbol', requireAuth, async (req, res) => {
+  const symbol = typeof req.params.symbol === 'string' ? req.params.symbol.toUpperCase() : null;
+  if (!symbol) return res.status(400).json({ error: 'A valid instrument symbol is required.' });
   try {
     const db = getDatabase();
     if (db) {
-      const [instrument] = await db.select().from(instruments).where(eq(instruments.symbol, req.params.symbol.toUpperCase())).limit(1);
+      const [instrument] = await db.select().from(instruments).where(eq(instruments.symbol, symbol)).limit(1);
       if (instrument) await db.delete(watchlistItems).where(and(eq(watchlistItems.userId, req.user!.id), eq(watchlistItems.instrumentId, instrument.id)));
-    } else memory.watchlists.get(req.user!.id)?.delete(req.params.symbol.toUpperCase());
+    } else memory.watchlists.get(req.user!.id)?.delete(symbol);
     return res.json({ success: true });
   } catch (error) { return apiError(res, error); }
 });
@@ -362,15 +370,17 @@ app.get('/api/admin/briefings', requireAdmin, async (_req, res) => {
   } catch (error) { return apiError(res, error); }
 });
 app.post('/api/admin/briefings/:slug/publish', requireAdmin, async (req, res) => {
+  const slug = typeof req.params.slug === 'string' ? req.params.slug : null;
+  if (!slug) return res.status(400).json({ error: 'A valid briefing slug is required.' });
   try {
     const db = getDatabase();
     if (db) {
-      const [draft] = await db.select().from(briefings).where(and(eq(briefings.slug, req.params.slug), eq(briefings.status, 'draft'))).limit(1);
+      const [draft] = await db.select().from(briefings).where(and(eq(briefings.slug, slug), eq(briefings.status, 'draft'))).limit(1);
       if (!draft) return res.status(404).json({ error: 'Draft briefing not found.' });
       const [published] = await db.update(briefings).set({ status: 'published', publishedAt: new Date() }).where(eq(briefings.id, draft.id)).returning();
       return res.json({ briefing: published });
     }
-    const index = memory.draftBriefings.findIndex((item) => item.slug === req.params.slug);
+    const index = memory.draftBriefings.findIndex((item) => item.slug === slug);
     if (index < 0) return res.status(404).json({ error: 'Draft briefing not found.' });
     const [draft] = memory.draftBriefings.splice(index, 1);
     const published = { ...draft, status: 'published', publishedAt: new Date().toISOString() };

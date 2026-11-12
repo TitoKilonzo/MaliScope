@@ -23,6 +23,15 @@ describe('MaliScope API', () => {
     expect(response.status).toBe(200);
     expect(response.body.marketData).toBe('illustrative-demo');
   });
+  it('returns API information at the root path', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      service: 'MaliScope API',
+      message: 'API is running.',
+      health: '/api/health'
+    });
+  });
   it('returns course catalogue', async () => {
     const response = await request(app).get('/api/academy/courses');
     expect(response.status).toBe(200);

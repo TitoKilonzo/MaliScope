@@ -12,7 +12,17 @@ import { createSession, hashPassword, sessionCookieName, verifyPassword } from '
 import { optionalAuth, requireAdmin, requireAuth } from './middleware/auth.js';
 
 const app = express();
-const allowedOrigin = process.env.WEB_ORIGIN || 'http://localhost:3000';
+const configuredWebOrigin = (process.env.WEB_ORIGIN || 'http://localhost:3000').trim();
+let parsedWebOrigin: URL;
+try {
+  parsedWebOrigin = new URL(configuredWebOrigin);
+} catch {
+  throw new Error('WEB_ORIGIN must be a valid HTTP(S) origin.');
+}
+if (!['http:', 'https:'].includes(parsedWebOrigin.protocol) || parsedWebOrigin.pathname !== '/' || parsedWebOrigin.search || parsedWebOrigin.hash) {
+  throw new Error('WEB_ORIGIN must be an HTTP(S) origin without a path, query or fragment.');
+}
+const allowedOrigin = parsedWebOrigin.origin;
 const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));
@@ -54,7 +64,7 @@ export async function initialiseDemoAdmin() {
 }
 
 function cookieOptions() {
-  return { httpOnly: true, secure: isProduction, sameSite: 'lax' as const, path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 };
+  return { httpOnly: true, secure: isProduction, sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 };
 }
 function apiError(res: express.Response, error: unknown) {
   const message = error instanceof Error ? error.message : 'Unexpected server error';

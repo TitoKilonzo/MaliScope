@@ -98,9 +98,9 @@ npm run job:market-refresh
 
 ### Render deployment
 
-Deploy two Render services from the repository root so npm workspaces can resolve the shared lockfile. For the API web service, use build command `npm install && npm run build -w @maliscope/api` and start command `npm run start -w @maliscope/api`. For the web service, use build command `npm install && npm run build -w @maliscope/web` and start command `npm run start -w @maliscope/web`. Both apps honor Render's assigned `PORT`.
+Deploy two Render services from the repository root so npm workspaces can resolve the shared lockfile. For the API web service, use build command `npm install --include=dev && npm run build -w @maliscope/api` and start command `npm run start -w @maliscope/api`. For the web service, use build command `npm install --include=dev && npm run build -w @maliscope/web` and start command `npm run start -w @maliscope/web`. The build needs development dependencies such as TypeScript and type declarations even when `NODE_ENV=production`; both apps honor Render's assigned `PORT`.
 
-Configure the API service with `NODE_ENV=production`, `DEMO_MODE=false`, `DATABASE_URL`, `SESSION_SECRET` (at least 32 characters), and `WEB_ORIGIN` set to the web service's HTTPS origin. Configure the web service with `NEXT_PUBLIC_API_URL` set to the API's HTTPS origin. Run `npm run db:migrate -w @maliscope/api` as the API service's pre-deploy command before its first deployment and after schema changes. Never enable demo mode in production.
+Configure the API service with `NODE_ENV=production`, `DEMO_MODE=false`, `DATABASE_URL`, `SESSION_SECRET` (at least 32 characters), and `WEB_ORIGIN` set to the web service's HTTPS origin without a trailing slash (for example, `https://mali-scope.vercel.app`). Configure the web service with `NEXT_PUBLIC_API_URL` set to the API's HTTPS origin without a trailing slash (for example, `https://maliscope.onrender.com`). Run `npm run db:migrate -w @maliscope/api` as the API service's pre-deploy command before its first deployment and after schema changes. Never enable demo mode in production.
 
 ## Market data adapter
 

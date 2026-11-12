@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import app, { initialiseDemoAdmin } from './app.js';
 
 process.env.DEMO_MODE = 'true';
 process.env.SESSION_SECRET = 'test-secret-that-is-long-enough-for-test';
+process.env.WEB_ORIGIN = 'https://mali-scope.vercel.app/';
+const { default: app, initialiseDemoAdmin } = await import('./app.js');
 await initialiseDemoAdmin();
 
 describe('MaliScope API', () => {
@@ -31,6 +32,15 @@ describe('MaliScope API', () => {
       message: 'API is running.',
       health: '/api/health'
     });
+  });
+  it('accepts preflight requests for a configured origin with a trailing slash', async () => {
+    const response = await request(app)
+      .options('/api/dashboard')
+      .set('Origin', 'https://mali-scope.vercel.app')
+      .set('Access-Control-Request-Method', 'GET');
+    expect(response.status).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe('https://mali-scope.vercel.app');
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
   });
   it('returns course catalogue', async () => {
     const response = await request(app).get('/api/academy/courses');
